@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cambio · Play the card game online with friends</title>
+  <meta name="description" content="Cambio is a memory card game for 2 to 4 players. Share a room code and play together in your browser, no sign-up needed.">
+  <meta name="theme-color" content="#9d86dd">
+  <meta property="og:title" content="Cambio, the memory card game">
+  <meta property="og:description" content="Play Cambio online with friends. Share a room code and start playing.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='14' y='6' width='36' height='52' rx='7' fill='%239d86dd'/%3E%3Ccircle cx='32' cy='32' r='7' fill='white' fill-opacity='.85'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div id="connection" class="connection" title="Connection status"></div>
+    <div class="brand">Cambio <span class="spark">✦</span></div>
+    <button id="menuBtn" class="menu-btn" aria-label="Rules">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <section id="lobby" class="lobby">
+    <p class="instruction">Join a game</p>
+    <p class="sub">At least 2 players are needed. The first player to join is the host.</p>
+    <div class="lobby-form">
+      <input id="name" placeholder="Your name" value="Player">
+      <input id="room" placeholder="Room code" value="room1">
+      <button id="connect" class="btn primary">Join game</button>
+    </div>
+    <div id="lobbyStatus" class="sub">Enter your name and room.</div>
+    <button id="startGame" class="btn primary hidden">Start game</button>
+  </section>
+
+  <main id="game" class="hidden">
+    <div id="instruction" class="instruction"></div>
+    <div id="sub" class="sub"></div>
+    <button id="ready" class="btn primary hidden"></button>
+    <div id="powerActions" class="power-actions hidden"></div>
+
+    <section id="opponents" class="opponents"></section>
+
+    <section id="table" class="table">
+      <button id="deck" class="pile deck" aria-label="Draw from deck"></button>
+      <button id="discard" class="pile discard empty" aria-label="Discard pile"></button>
+      <div id="drawn" class="drawn hidden">
+        <div id="drawnCard"></div>
+        <div id="drawnButtons" class="drawn-buttons"></div>
+      </div>
+    </section>
+
+    <section id="me" class="me"></section>
+
+    <div class="bottom-actions">
+      <button id="cambio" class="btn primary hidden">Call Cambio</button>
+      <button id="newGame" class="btn primary hidden">New game</button>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<div id="rulesModal" class="modal hidden">
+  <div class="modal-body">
+    <button id="closeRules" class="modal-close" aria-label="Close">×</button>
+    <h2>How to play</h2>
+    <p><b>Goal:</b> have the fewest points in your hand.</p>
+    <p class="pts-line">A = 1 · 2–10 = face value · J = 11 · Q = 12 · <span class="red">Red K = −1</span> · Black K = 13 · Joker = 0. Points are shown at the bottom right of each card.</p>
+    <p>You start with four cards, two of them visible only to you. Memorize them — you can't see them again once the game starts.</p>
+    <p>On your turn, draw from the deck or the discard pile. Then either discard the card (to use its power) or replace one of your own cards with it. A card drawn from the discard pile can't use its power.</p>
+    <h3>Powers</h3>
+    <ul>
+      <li><b>7, 8</b> – peek at one of your own cards</li>
+      <li><b>9, 10</b> – peek at someone else's card</li>
+      <li><b>J, Q</b> – swap any two cards without looking</li>
+      <li><b>K</b> – look at two cards, then decide whether to swap them</li>
+    </ul>
+    <h3>Flipping</h3>
+    <p>Any time there's a card on the discard pile you can tap your own or someone else's card to flip it. Everyone sees the flipped card for a moment. If it matches the top discard, the flip is correct and the card goes to the discard pile: flipping your own card shrinks your hand (good!); flipping someone else's lets you give them one of your cards in its place. A wrong flip gives you a random extra card from the deck, kept face-down. More than 6 cards and you lose. Only one flip can succeed per discard, and you can't flip on your own discard.</p>
+    <h3>Winning</h3>
+    <p>When you think you have the fewest points, press <b>Call Cambio</b> on your turn before drawing. Everyone else gets one more turn, and your cards are protected. If you have strictly fewer points than everyone else you win; if anyone ties or beats you, they win.</p>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

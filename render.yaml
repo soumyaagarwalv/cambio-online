@@ -1,0 +1,8 @@
+# Render "Blueprint": one click deploy of the whole game as a website.
+services:
+  - type: web
+    name: cambio
+    runtime: docker
+    plan: starter          # always on (about $7/month). "free" sleeps when idle.
+    healthCheckPath: /healthz
+    numInstances: 1        # game rooms live in memory: keep ONE instance
