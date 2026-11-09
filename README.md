@@ -125,10 +125,3 @@ Port: first argument, or the `PORT` environment variable, default 8080. Run it f
 If the page is served from somewhere else, add `?server=host:port` to the URL to point it at the game server.
 
 
-## Deploying as a website (Render)
-
-1. Create a GitHub repository and push this folder: `git init && git add . && git commit -m "Cambio" && git branch -M main && git remote add origin <your-repo-url> && git push -u origin main`.
-2. On render.com choose **New > Blueprint**, pick the repository, and approve `render.yaml`. Render builds the `Dockerfile` and gives you an `https://cambio-xxxx.onrender.com` address.
-3. For your own address, open the service's **Settings > Custom Domains**, add your domain, and create the DNS record Render shows you. HTTPS is issued automatically.
-
-Keep to one instance (rooms are stored in memory). The `starter` plan stays awake; the free plan sleeps after idle time and drops games in progress.
