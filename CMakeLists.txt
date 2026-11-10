@@ -66,6 +66,10 @@ add_executable(cambio_server_tests tests/ServerViewTests.cpp)
 target_link_libraries(cambio_server_tests PRIVATE cambio_server_core)
 add_test(NAME cambio_server_tests COMMAND cambio_server_tests)
 
+add_executable(cambio_room_tests tests/RoomManagerTests.cpp)
+target_link_libraries(cambio_room_tests PRIVATE cambio_server_core)
+add_test(NAME cambio_room_tests COMMAND cambio_room_tests)
+
 add_executable(cambio_ai_tests tests/AIRuntimeTests.cpp)
 target_link_libraries(cambio_ai_tests PRIVATE cambio_ai)
 add_test(NAME cambio_ai_tests COMMAND cambio_ai_tests)

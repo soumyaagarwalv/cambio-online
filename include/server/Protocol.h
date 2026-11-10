@@ -6,7 +6,7 @@
 #include <optional>
 
 struct ClientCommand {
-    enum class Type { JOIN, START, ACTION, PING, UNKNOWN };
+    enum class Type { CREATE, JOIN, START, ACTION, PING, UNKNOWN };
     Type type = Type::UNKNOWN;
     std::string roomId;
     std::string playerName;

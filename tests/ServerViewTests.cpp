@@ -60,6 +60,34 @@ int main() {
     assert(command->action.targetPlayer == 2);
     assert(command->action.targetPosition == 3);
 
+    // Public activity: other players see THAT a draw happened, never the drawn card.
+    {
+        const int actor = playingView.currentPlayer;
+        const int other = 1 - actor;
+        assert(engine.performAction(actor, Action{ActionType::DRAW_FROM_DECK}, error));
+        const GameView watcher = GameViewBuilder::build(state, engine, other);
+        assert(watcher.activity.size() == 1);
+        assert(watcher.activity[0].kind == "DRAW");
+        assert(watcher.activity[0].actor == actor);
+        assert(!watcher.activity[0].fromDiscard);
+        assert(watcher.activity[0].label.empty());      // deck draw stays private
+        assert(watcher.currentDrew);
+        assert(!watcher.pendingDraw.has_value());
+        const std::string wjson = gameViewToJson(watcher);
+        assert(wjson.find("\"activity\":[{\"kind\":\"DRAW\"") != std::string::npos);
+        engine.clearEvents();
+
+        // Replacing a card: the slot is visible to everyone, the old card is public (discarded).
+        Action replace{ActionType::REPLACE_CARD_WITH_DRAWN};
+        replace.position = 2;
+        assert(engine.performAction(actor, replace, error));
+        const GameView after = GameViewBuilder::build(state, engine, other);
+        bool sawReplace = false;
+        for (const auto& a : after.activity)
+            if (a.kind == "REPLACE") { sawReplace = true; assert(a.actor == actor && a.p1 == actor && a.x1 == 2); }
+        assert(sawReplace);
+    }
+
     std::cout << "Server view/protocol tests passed.\n";
     return 0;
 }

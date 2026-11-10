@@ -26,20 +26,36 @@
   </header>
 
   <section id="lobby" class="lobby">
-    <p class="instruction">Join a game</p>
-    <p class="sub">At least 2 players are needed. The first player to join is the host.</p>
-    <div class="lobby-form">
-      <input id="name" placeholder="Your name" value="Player">
-      <input id="room" placeholder="Room code" value="room1">
-      <button id="connect" class="btn primary">Join game</button>
+    <!-- Step 1: name + create or join -->
+    <div id="lobbyEntry">
+      <p class="instruction">Play Cambio with friends</p>
+      <p class="sub">2 to 4 players. Create a game and share the code, or join one with a code.</p>
+      <div class="lobby-form">
+        <input id="name" placeholder="Your name" maxlength="20" autocomplete="nickname">
+        <button id="createGame" class="btn primary">Create game</button>
+        <div class="or-divider"><span>or</span></div>
+        <input id="room" class="code-input" placeholder="Game code" maxlength="12" autocapitalize="characters" autocomplete="off" spellcheck="false">
+        <button id="joinGame" class="btn secondary">Join game</button>
+      </div>
     </div>
-    <div id="lobbyStatus" class="sub">Enter your name and room.</div>
-    <button id="startGame" class="btn primary hidden">Start game</button>
+
+    <!-- Step 2: waiting room -->
+    <div id="lobbyRoom" class="hidden">
+      <p class="sub">Game code</p>
+      <div id="roomCode" class="room-code"></div>
+      <div class="share-row">
+        <button id="copyLink" class="btn secondary">Copy invite link</button>
+      </div>
+      <ul id="playerList" class="player-list"></ul>
+      <div id="lobbyStatus" class="sub"></div>
+      <button id="startGame" class="btn primary hidden">Start game</button>
+    </div>
   </section>
 
   <main id="game" class="hidden">
     <div id="instruction" class="instruction"></div>
     <div id="sub" class="sub"></div>
+    <div id="activity" class="activity hidden"></div>
     <button id="ready" class="btn primary hidden"></button>
     <div id="powerActions" class="power-actions hidden"></div>
 

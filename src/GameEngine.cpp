@@ -423,11 +423,10 @@ bool GameEngine::performAction(
             Player::swapCardsBetweenPlayers(lp, pa, xa, pb, xb);
             GameEvent swapEvent{};
             swapEvent.type = GameEventType::CARDS_SWAPPED;
-            swapEvent.player = pa;
-            swapEvent.position = xa;
-            swapEvent.targetPlayer = pb;
-            swapEvent.targetPosition = xb;
-            swapEvent.secondTargetPlayer = pb;
+            swapEvent.player = playerIndex;          // who used the power
+            swapEvent.targetPlayer = pa;             // first card
+            swapEvent.targetPosition = xa;
+            swapEvent.secondTargetPlayer = pb;       // second card
             swapEvent.secondTargetPosition = xb;
             swapEvent.swapped = true;
             events.push_back(swapEvent);
@@ -794,11 +793,10 @@ bool GameEngine::performAction(
 
             GameEvent swapEvent{};
             swapEvent.type = GameEventType::CARDS_SWAPPED;
-            swapEvent.player = firstPlayer;
-            swapEvent.position = firstPosition;
-            swapEvent.targetPlayer = secondPlayer;
-            swapEvent.targetPosition = secondPosition;
-            swapEvent.secondTargetPlayer = secondPlayer;
+            swapEvent.player = playerIndex;          // who used the power
+            swapEvent.targetPlayer = firstPlayer;    // first card
+            swapEvent.targetPosition = firstPosition;
+            swapEvent.secondTargetPlayer = secondPlayer;   // second card
             swapEvent.secondTargetPosition = secondPosition;
             swapEvent.swapped = true;
             events.push_back(swapEvent);
@@ -880,11 +878,10 @@ bool GameEngine::performAction(
 
                 GameEvent swapEvent{};
                 swapEvent.type = GameEventType::CARDS_SWAPPED;
-                swapEvent.player = firstPlayer;
-                swapEvent.position = firstPosition;
-                swapEvent.targetPlayer = secondPlayer;
-                swapEvent.targetPosition = secondPosition;
-                swapEvent.secondTargetPlayer = secondPlayer;
+                swapEvent.player = playerIndex;          // who used the power
+                swapEvent.targetPlayer = firstPlayer;    // first card
+                swapEvent.targetPosition = firstPosition;
+                swapEvent.secondTargetPlayer = secondPlayer;   // second card
                 swapEvent.secondTargetPosition = secondPosition;
                 swapEvent.swapped = true;
                 events.push_back(swapEvent);

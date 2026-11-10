@@ -81,6 +81,101 @@ function faceUp(key) {
 
 const $ = id => document.getElementById(id);
 
+/* ---------- what the other players are doing ---------- */
+// The server sends the public activity of each action (draw, replace, discard, peek, swap).
+// Hidden identities are never part of it, only WHICH cards were involved, so we pulse those
+// slots and show a short line like "Bob swapped his own card with your card".
+const ACTIVITY_MS = 6000, HL_MS = 3500;
+let activityText = '', activityUntil = 0;
+const highlights = new Map();   // "player:pos" -> { until, kind: 'swap'|'replace'|'peek' }
+let pendingAnims = [];          // visual moves to play after the next render
+
+function slotName(p, actor) {
+  if (p === myId) return 'your';
+  if (p === actor) return 'their own';
+  return `${nameOf(p)}'s`;
+}
+function describeActivity(list) {
+  const parts = [];
+  for (let i = 0; i < list.length; i++) {
+    const a = list[i];
+    const who = nameOf(a.actor);
+    if (a.kind === 'DRAW') {
+      parts.push(a.fromDiscard ? `${who} took the ${a.label} from the discard pile` : `${who} drew from the deck`);
+    } else if (a.kind === 'REPLACE') {
+      parts.push(`${who} replaced one of their cards (discarded ${a.label})`);
+    } else if (a.kind === 'DISCARD') {
+      parts.push(`${who} discarded ${a.label}`);
+    } else if (a.kind === 'PEEK') {
+      const next = list[i + 1];
+      if (next && next.kind === 'PEEK' && next.actor === a.actor) {   // King: two cards at once
+        parts.push(`${who} looked at ${slotName(a.p1, a.actor)} card and ${slotName(next.p1, a.actor)} card`);
+        i++;
+      } else {
+        parts.push(`${who} looked at ${slotName(a.p1, a.actor)} card`);
+      }
+    } else if (a.kind === 'SWAP') {
+      parts.push(`${who} swapped ${slotName(a.p1, a.actor)} card with ${slotName(a.p2, a.actor)} card`);
+    } else if (a.kind === 'CAMBIO') {
+      parts.push(`${who} called Cambio`);
+    }
+  }
+  return parts.join(' · ');
+}
+function trackActivity(list) {
+  const all = list || [];
+  if (!all.length) return;
+  // Text banner: only what OTHER players did (your own moves already give you feedback).
+  const others = all.filter(a => a.actor !== myId);
+  if (others.length) {
+    activityText = describeActivity(others);
+    activityUntil = Date.now() + ACTIVITY_MS;
+    setTimeout(() => render(), ACTIVITY_MS + 60);
+  }
+  // Visual marks + motion for every swap / replace, and for other players' peeks.
+  const until = Date.now() + HL_MS;
+  all.forEach(a => {
+    if (a.kind === 'PEEK' && a.actor !== myId) highlights.set(`${a.p1}:${a.x1}`, { until, kind: 'peek' });
+    if (a.kind === 'REPLACE') {
+      highlights.set(`${a.p1}:${a.x1}`, { until, kind: 'replace' });
+      pendingAnims.push({ type: 'replace', key: `${a.p1}:${a.x1}` });
+    }
+    if (a.kind === 'SWAP') {
+      const k1 = `${a.p1}:${a.x1}`, k2 = `${a.p2}:${a.x2}`;
+      highlights.set(k1, { until, kind: 'swap' }); highlights.set(k2, { until, kind: 'swap' });
+      pendingAnims.push({ type: 'swap', a: k1, b: k2 });
+    }
+  });
+  setTimeout(() => render(), HL_MS + 60);
+}
+// Cards visibly fly: a swap crosses the two cards over, a replace drops the new card in from the deck.
+function slotEl(key) { return document.querySelector(`.pcard[data-key="${key}"]`); }
+function playAnimations() {
+  const list = pendingAnims; pendingAnims = [];
+  const fly = (el, from) => {
+    if (!el || !from) return;
+    const to = el.getBoundingClientRect();
+    const dx = from.left - to.left, dy = from.top - to.top;
+    el.style.zIndex = 5;
+    el.animate(
+      [{ transform: `translate(${dx}px, ${dy}px) scale(1.15)`, opacity: .9 }, { transform: 'none', opacity: 1 }],
+      { duration: 900, easing: 'cubic-bezier(.2,.8,.2,1)' }
+    ).onfinish = () => { el.style.zIndex = ''; };
+  };
+  list.forEach(an => {
+    if (an.type === 'swap') {
+      const ea = slotEl(an.a), eb = slotEl(an.b);
+      if (!ea || !eb) return;
+      const ra = ea.getBoundingClientRect(), rb = eb.getBoundingClientRect();
+      fly(ea, rb); fly(eb, ra);               // each card travels from the other one's spot
+    } else if (an.type === 'replace') {
+      const deck = $('deck');
+      if (deck) fly(slotEl(an.key), deck.getBoundingClientRect());
+    }
+  });
+}
+function highlightOf(key) { const h = highlights.get(key); return h && h.until > Date.now() ? h : null; }
+
 const POWER_TEXT = {
   PEEK_OWN: 'peek at one of your own cards',
   PEEK_OPPONENT: "peek at someone else's card",
@@ -259,6 +354,15 @@ function renderHand(p, { opponent = false } = {}) {
       onClick: () => handleCardClick(p.playerId, c)
     });
     if (fl) el.classList.add(fl.success ? 'flip-ok' : 'flip-bad');
+    el.dataset.key = `${p.playerId}:${pos}`;
+    const hl = highlightOf(`${p.playerId}:${pos}`);
+    if (hl) {
+      el.classList.add('hl', `hl-${hl.kind}`);
+      const t = document.createElement('span');
+      t.className = 'tag';
+      t.textContent = hl.kind === 'swap' ? '⇄' : hl.kind === 'replace' ? '↻' : '👁';
+      el.appendChild(t);
+    }
     hand.appendChild(el);
   });
 
@@ -312,6 +416,9 @@ function instruction() {
     return s.phase === 'FINAL_ROUND' ? 'Final turn: draw from the deck or discard pile' : 'Draw from the deck or discard pile';
   }
   if (!myTurn && flashMsg && Date.now() < flashUntil) return esc(flashMsg);
+  if (s.currentDrew) {
+    return `<b>${esc(nameOf(s.currentPlayer))}</b> ${s.currentDrewFromDiscard ? 'took the top discard' : 'drew from the deck'} and is deciding`;
+  }
   return `<b>${esc(nameOf(s.currentPlayer))}</b> is choosing a card`;
 }
 
@@ -336,6 +443,10 @@ function render() {
 
   $('instruction').innerHTML = instruction();
   $('sub').textContent = subText();
+  const act = $('activity');
+  const showAct = !!activityText && Date.now() < activityUntil && s.phase !== 'MEMORIZATION';
+  act.classList.toggle('hidden', !showAct);
+  if (showAct) act.textContent = activityText;
 
   // Ready button
   const readyBtn = $('ready');
@@ -403,56 +514,156 @@ function render() {
 }
 
 /* ---------- networking + wiring ---------- */
-$('connect').onclick = () => {
-  if (ws && ws.readyState === WebSocket.OPEN) return;
+const urlParams = new URLSearchParams(location.search);
+const normCode = v => v.toUpperCase().replace(/[^A-Z0-9]/g, '');
+let isHost = false;
+
+function inviteLink(code) {
+  const u = new URL(location.href);
+  u.search = '';
+  u.searchParams.set('room', code);
+  const server = urlParams.get('server');
+  if (server) u.searchParams.set('server', server);
+  u.hash = '';
+  return u.toString();
+}
+
+function setLobbyBusy(busy) {
+  ['createGame', 'joinGame'].forEach(id => { $(id).disabled = busy; });
+}
+
+function showWaitingRoom(code) {
+  $('lobbyEntry').classList.add('hidden');
+  $('lobbyRoom').classList.remove('hidden');
+  $('roomCode').textContent = code;
+  // Make the address bar a shareable link to this exact game.
+  try { history.replaceState(null, '', inviteLink(code)); } catch (_) {}
+}
+
+function renderPlayerList(players, myIsHost) {
+  const ul = $('playerList');
+  ul.innerHTML = '';
+  players.forEach((n, i) => {
+    const li = document.createElement('li');
+    li.textContent = n;
+    if (i === 0) {
+      const tag = document.createElement('span');
+      tag.className = 'host-tag';
+      tag.textContent = 'host';
+      li.appendChild(tag);
+    }
+    ul.appendChild(li);
+  });
+}
+
+function handleMessage(e) {
+  const m = JSON.parse(e.data);
+  if (m.type === 'joined') {
+    myId = m.playerId;
+    showWaitingRoom(m.roomId);
+    $('lobbyStatus').textContent = 'Waiting for players…';
+  } else if (m.type === 'seat') {
+    // Final seat number once the game starts (can differ if someone left the lobby).
+    myId = m.playerId;
+  } else if (m.type === 'lobby') {
+    const n = m.playerCount;
+    isHost = !!m.host;
+    renderPlayerList(m.players || [], isHost);
+    $('lobbyStatus').textContent = n < 2
+      ? `Waiting for players… ${n}/2 minimum`
+      : (isHost ? `${n} players joined. You can start the game.` : `${n} players joined. Waiting for the host.`);
+    $('startGame').classList.toggle('hidden', !m.canStart);
+  } else if (m.type === 'state') {
+    const prevStage = state?.turnStage;
+    state = m;
+    trackReveals(m);
+    if (m.flip) showFlip(m.flip);
+    trackActivity(m.activity);
+    if (m.turnStage !== 'AFTER_DRAW' || prevStage !== 'AFTER_DRAW') resetPower();
+    $('lobby').classList.add('hidden');
+    $('game').classList.remove('hidden');
+    render();
+    playAnimations();
+  } else if (m.type === 'error') {
+    flashMsg = '';
+    setLobbyBusy(false);
+    // A flip can lose a race with someone else's flip; stay quiet about it.
+    if (Date.now() - lastFlipAttempt > 1500) toast(m.message);
+  }
+}
+
+// Open the socket if needed, then send `msg` (create/join) once connected.
+function connectAndSend(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) { send(msg); return; }
+  if (ws && ws.readyState === WebSocket.CONNECTING) return;
   // Same origin as the page (works behind https tunnels/hosting too). Override
   // with ?server=host:port, e.g. when the page is served separately.
-  const override = new URLSearchParams(location.search).get('server');
+  const override = urlParams.get('server');
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const hostPart = override || location.host || 'localhost:8080';
+  setLobbyBusy(true);
   ws = new WebSocket(`${proto}://${hostPart}`);
   $('connection').className = 'connection connecting';
   ws.onopen = () => {
     $('connection').className = 'connection connected';
-    send({ type: 'join', roomId: $('room').value.trim() || 'room1', name: $('name').value.trim() || 'Player' });
+    send(msg);
   };
-  ws.onmessage = e => {
-    const m = JSON.parse(e.data);
-    if (m.type === 'joined') {
-      myId = m.playerId;
-      $('lobbyStatus').textContent = myId === 0 ? 'You are the host. Waiting for another player…' : 'Waiting for the host to start…';
-    } else if (m.type === 'lobby') {
-      const n = m.playerCount;
-      $('lobbyStatus').textContent = n < 2
-        ? `Waiting for players… ${n}/2 minimum`
-        : (myId === 0 ? `${n} players joined. You can start the game.` : `${n} players joined. Waiting for the host.`);
-      $('startGame').classList.toggle('hidden', !(myId === 0 && n >= 2));
-    } else if (m.type === 'state') {
-      const prevStage = state?.turnStage;
-      state = m;
-      trackReveals(m);
-      if (m.flip) showFlip(m.flip);
-      if (m.turnStage !== 'AFTER_DRAW' || prevStage !== 'AFTER_DRAW') resetPower();
-      $('lobby').classList.add('hidden');
-      $('game').classList.remove('hidden');
-      render();
-    } else if (m.type === 'error') {
-      flashMsg = '';
-      // A flip can lose a race with someone else's flip; stay quiet about it.
-      if (Date.now() - lastFlipAttempt > 1500) toast(m.message);
-    }
-  };
+  ws.onmessage = handleMessage;
   // Keep the connection alive through proxies/tunnels that drop idle sockets.
   const pingTimer = setInterval(() => send({ type: 'ping' }), 25000);
-  ws.onclose = () => { clearInterval(pingTimer); $('connection').className = 'connection disconnected'; };
+  ws.onclose = () => {
+    clearInterval(pingTimer);
+    $('connection').className = 'connection disconnected';
+    setLobbyBusy(false);
+  };
+}
+
+const playerName = () => $('name').value.trim() || 'Player';
+
+$('createGame').onclick = () => {
+  setLobbyBusy(true);
+  connectAndSend({ type: 'create', name: playerName() });
 };
+
+function joinFromInput() {
+  const code = normCode($('room').value);
+  if (!code) { toast('Enter the game code your friend shared.'); return; }
+  setLobbyBusy(true);
+  connectAndSend({ type: 'join', roomId: code, name: playerName() });
+}
+$('joinGame').onclick = joinFromInput;
+$('room').addEventListener('keydown', e => { if (e.key === 'Enter') joinFromInput(); });
+$('room').addEventListener('input', () => { $('room').value = $('room').value.toUpperCase(); });
+
+$('copyLink').onclick = async () => {
+  const link = inviteLink($('roomCode').textContent);
+  try {
+    await navigator.clipboard.writeText(link);
+    toast('Invite link copied!');
+  } catch (_) {
+    window.prompt('Copy this invite link:', link);
+  }
+};
+
+// Opened via an invite link (?room=ABC123): prefill the code and ask for a name.
+const invited = normCode(urlParams.get('room') || '');
+if (invited) {
+  $('room').value = invited;
+  $('lobbyEntry').querySelector('.instruction').textContent = 'You’re invited to a game';
+  $('name').focus();
+}
 
 $('startGame').onclick = () => send({ type: 'start' });
 $('ready').onclick = () => action('CONFIRM_READY');
 $('deck').onclick = () => action('DRAW_FROM_DECK');
 $('discard').onclick = () => action('DRAW_FROM_DISCARD');
 $('cambio').onclick = () => action('CALL_CAMBIO');
-$('newGame').onclick = () => location.reload();
+$('newGame').onclick = () => {
+  // Back to the start screen; drop ?room= so we don't try to rejoin a finished game.
+  const u = new URL(location.href);
+  u.searchParams.delete('room');
+  location.href = u.toString();
+};
 $('menuBtn').onclick = () => $('rulesModal').classList.remove('hidden');
 $('closeRules').onclick = () => $('rulesModal').classList.add('hidden');
 $('rulesModal').onclick = e => { if (e.target === $('rulesModal')) $('rulesModal').classList.add('hidden'); };

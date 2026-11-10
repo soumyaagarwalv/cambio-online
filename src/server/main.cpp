@@ -131,7 +131,10 @@ public:
             handle(message);
         }
 
-        if (room && playerId >= 0) room->disconnect(playerId);
+        if (room && playerId >= 0) {
+            room->disconnect(playerId);
+            rooms.removeIfEmpty(room);   // last one out closes the room
+        }
     }
 
     void send(const std::string& message) {
@@ -151,6 +154,9 @@ private:
         }
 
         switch (command->type) {
+            case ClientCommand::Type::CREATE:
+                handleCreate(*command);
+                break;
             case ClientCommand::Type::JOIN:
                 handleJoin(*command);
                 break;
@@ -169,47 +175,68 @@ private:
         }
     }
 
-    void handleJoin(const ClientCommand& command) {
-        if (room) {
-            send(makeErrorMessage("You already joined a room."));
-            return;
-        }
-
-        room = rooms.getOrCreate(command.roomId.empty() ? "default" : command.roomId);
-
+    // Shared by "create" and "join": put this connection into `target`.
+    bool enter(const std::shared_ptr<GameRoom>& target, const std::string& name) {
         const auto weakSelf = weak_from_this();
         std::string error;
         int assignedId = -1;
-        if (!room->join(command.playerName,
-                        [weakSelf](const std::string& message) {
-                            if (auto self = weakSelf.lock()) self->send(message);
-                        },
-                        assignedId,
-                        error)) {
-            room.reset();
+        if (!target->join(name,
+                          [weakSelf](const std::string& message) {
+                              if (auto self = weakSelf.lock()) self->send(message);
+                          },
+                          assignedId,
+                          error)) {
+            send(makeErrorMessage(error));
+            return false;
+        }
+        room = target;
+        playerId = assignedId;
+        return true;
+    }
+
+    // "Create game": brand-new room with a fresh unique code; the creator is
+    // its first player (and therefore the host).
+    void handleCreate(const ClientCommand& command) {
+        if (room) {
+            send(makeErrorMessage("You are already in a game."));
+            return;
+        }
+        std::string error;
+        auto created = rooms.createRoom(error);
+        if (!created) {
             send(makeErrorMessage(error));
             return;
         }
+        if (!enter(created, command.playerName)) rooms.removeIfEmpty(created);
+    }
 
-        playerId = assignedId;
-        send(makeInfoMessage("Joined successfully. Wait for the host to start the game."));
+    // "Join game": the room must already exist. Typing an unknown code never
+    // creates a room.
+    void handleJoin(const ClientCommand& command) {
+        if (room) {
+            send(makeErrorMessage("You are already in a game."));
+            return;
+        }
+        if (RoomManager::normalizeCode(command.roomId).empty()) {
+            send(makeErrorMessage("Enter a game code."));
+            return;
+        }
+        auto found = rooms.findRoom(command.roomId);
+        if (!found) {
+            send(makeErrorMessage("No game found with that code. Check it and try again."));
+            return;
+        }
+        enter(found, command.playerName);
     }
 
     void handleStart() {
         if (!room || playerId < 0) {
-            send(makeErrorMessage("Join a room first."));
+            send(makeErrorMessage("Join a game first."));
             return;
         }
-
-        if (playerId != 0) {
-            send(makeErrorMessage("Only the host can start the game."));
-            return;
-        }
-
         std::string error;
-        if (!room->start(error)) {
+        if (!room->start(playerId, error)) {
             send(makeErrorMessage(error));
-            return;
         }
     }
 

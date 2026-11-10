@@ -41,6 +41,20 @@ struct FlipView {
     std::string color = "NONE";
 };
 
+// One public thing another player just did (draw, replace, discard, peek, swap, Cambio).
+// Never contains a hidden card identity: peeks only say WHICH slot was looked at, and a
+// deck draw carries no card. Cards that went to the discard pile are public anyway.
+struct ActivityView {
+    std::string kind;            // DRAW, REPLACE, DISCARD, PEEK, SWAP, CAMBIO
+    int actor = -1;
+    bool fromDiscard = false;    // DRAW only
+    int p1 = -1, x1 = -1;        // REPLACE: own slot, PEEK: looked-at slot, SWAP: first slot
+    int p2 = -1, x2 = -1;        // SWAP: second slot
+    std::string label;           // public card (DRAW from discard, REPLACE, DISCARD)
+    std::string value;
+    std::string color = "NONE";
+};
+
 struct GameView {
     int viewerId = -1;
     std::string phase;
@@ -64,6 +78,9 @@ struct GameView {
     bool pendingFlipGift = false;
     int pendingFlipGiftTarget = -1;
     std::optional<FlipView> flip;
+    std::vector<ActivityView> activity;      // what happened in the action just performed
+    bool currentDrew = false;                // current player drew and is still deciding
+    bool currentDrewFromDiscard = false;
 };
 
 class GameViewBuilder {

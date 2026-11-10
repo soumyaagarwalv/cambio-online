@@ -102,10 +102,15 @@ std::optional<ClientCommand> parseClientCommand(const std::string& json,
     }
 
     ClientCommand cmd;
+    if (typeIt->second == "create") {
+        cmd.type = ClientCommand::Type::CREATE;
+        cmd.playerName = m.count("name") ? m.at("name") : "";
+        return cmd;
+    }
     if (typeIt->second == "join") {
         cmd.type = ClientCommand::Type::JOIN;
-        cmd.roomId = m.count("roomId") ? m.at("roomId") : "default";
-        cmd.playerName = m.count("name") ? m.at("name") : "Player";
+        cmd.roomId = m.count("roomId") ? m.at("roomId") : "";
+        cmd.playerName = m.count("name") ? m.at("name") : "";
         return cmd;
     }
     if (typeIt->second == "start") {

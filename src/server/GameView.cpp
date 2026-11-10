@@ -173,6 +173,54 @@ GameView GameViewBuilder::build(const GameState& state,
         view.flip = f;
     }
 
+    // Public activity of the action that was just performed.
+    for (const GameEvent& ev : engine.getEvents()) {
+        ActivityView a;
+        a.actor = ev.player;
+        switch (ev.type) {
+            case GameEventType::CARD_DRAWN:
+                a.kind = "DRAW";
+                a.fromDiscard = ev.fromDiscardPile;
+                break;
+            case GameEventType::CARD_REPLACED:
+                a.kind = "REPLACE";
+                a.p1 = ev.player; a.x1 = ev.position;
+                break;
+            case GameEventType::CARD_DISCARDED:
+                a.kind = "DISCARD";
+                break;
+            case GameEventType::CARD_PEEKED:
+                a.kind = "PEEK";
+                a.p1 = ev.targetPlayer; a.x1 = ev.targetPosition;
+                break;
+            case GameEventType::CARDS_SWAPPED:
+                a.kind = "SWAP";
+                a.p1 = ev.targetPlayer; a.x1 = ev.targetPosition;
+                a.p2 = ev.secondTargetPlayer; a.x2 = ev.secondTargetPosition;
+                break;
+            case GameEventType::PLAYER_CALLED_CAMBIO:
+                a.kind = "CAMBIO";
+                break;
+            default:
+                continue;
+        }
+        // Only cards that are already public are ever attached.
+        if (ev.publicCard && (a.kind == "DRAW" || a.kind == "REPLACE" || a.kind == "DISCARD")) {
+            a.label = ev.publicCard->getLabel();
+            a.value = ev.publicCard->toString();
+            a.color = colorName(ev.publicCard->getColor());
+        }
+        view.activity.push_back(std::move(a));
+    }
+
+    const int cur = state.getCurrentPlayerIndex();
+    if (cur != viewerId && state.getPhase() != GamePhase::FINISHED &&
+        state.getPhase() != GamePhase::MEMORIZATION &&
+        engine.hasPendingDrawForPlayer(cur)) {
+        view.currentDrew = true;
+        view.currentDrewFromDiscard = engine.isPendingDrawFromDiscard();
+    }
+
     return view;
 }
 
@@ -271,6 +319,21 @@ std::string gameViewToJson(const GameView& view) {
     } else {
         out << ",\"flip\":null";
     }
-    out << '}';
+    out << ",\"currentDrew\":" << (view.currentDrew ? "true" : "false")
+        << ",\"currentDrewFromDiscard\":" << (view.currentDrewFromDiscard ? "true" : "false")
+        << ",\"activity\":[";
+    for (std::size_t i = 0; i < view.activity.size(); ++i) {
+        if (i) out << ',';
+        const auto& a = view.activity[i];
+        out << "{\"kind\":\"" << escapeJson(a.kind) << "\""
+            << ",\"actor\":" << a.actor
+            << ",\"fromDiscard\":" << (a.fromDiscard ? "true" : "false")
+            << ",\"p1\":" << a.p1 << ",\"x1\":" << a.x1
+            << ",\"p2\":" << a.p2 << ",\"x2\":" << a.x2
+            << ",\"label\":\"" << escapeJson(a.label) << "\""
+            << ",\"value\":\"" << escapeJson(a.value) << "\""
+            << ",\"color\":\"" << escapeJson(a.color) << "\"}";
+    }
+    out << "]}";
     return out.str();
 }

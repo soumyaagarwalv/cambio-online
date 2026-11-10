@@ -50,6 +50,15 @@ button { font: inherit; cursor: pointer; border: 0; }
 .lobby-form { display: grid; gap: 10px; max-width: 320px; margin: 18px auto 12px; }
 .lobby input { border: 2px solid var(--lav-soft); border-radius: 14px; padding: 11px 14px; font: inherit; background: #fff; color: var(--ink); outline: none; }
 .lobby input:focus { border-color: var(--lav); }
+.lobby .code-input { text-align: center; text-transform: uppercase; letter-spacing: .25em; font-weight: 800; }
+.lobby-form .btn { width: 100%; padding: 12px 20px; }
+.or-divider { display: flex; align-items: center; gap: 10px; color: var(--lav-dark); font-size: 13px; font-weight: 700; margin: 4px 0; }
+.or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: var(--lav-soft); }
+.room-code { font-size: 44px; font-weight: 800; letter-spacing: .18em; color: var(--lav-dark); margin: 4px 0 12px; user-select: all; }
+.share-row { margin-bottom: 14px; }
+.player-list { list-style: none; padding: 0; margin: 0 auto 14px; max-width: 260px; display: grid; gap: 6px; }
+.player-list li { background: var(--lav-soft); border-radius: 12px; padding: 8px 14px; font-weight: 700; color: var(--ink); text-align: left; }
+.player-list li .host-tag { float: right; font-size: 12px; color: var(--lav-dark); }
 
 /* cards */
 .pcard { position: relative; width: var(--cw); height: calc(var(--cw) * 1.4); border-radius: 9px; background: #fff;
@@ -123,3 +132,23 @@ button { font: inherit; cursor: pointer; border: 0; }
 .modal-close { position: absolute; right: 12px; top: 8px; background: none; font-size: 28px; color: var(--lav); }
 
 #game { display: flex; flex-direction: column; flex: 1; }
+
+/* What the other players just did */
+.activity { margin: 4px auto 8px; padding: 7px 14px; max-width: 92%; border-radius: 14px; background: #efe9fb;
+  color: var(--lav-dark); font-size: 14px; font-weight: 700; text-align: center; animation: actIn .25s ease; }
+.activity.hidden { display: none; }
+@keyframes actIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.pcard.hl { z-index: 3; animation: hlPulse .7s ease 4; }
+.pcard.hl-swap    { box-shadow: 0 0 0 3px #f59e3b, 0 0 18px 6px rgba(245,158,59,.7); }
+.pcard.hl-replace { box-shadow: 0 0 0 3px #4cc38a, 0 0 18px 6px rgba(76,195,138,.7); }
+.pcard.hl-peek    { box-shadow: 0 0 0 3px #4a9be8, 0 0 18px 6px rgba(74,155,232,.7); }
+@keyframes hlPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+/* little badge in the middle of the card: what happened to it */
+.pcard .tag { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 4;
+  width: calc(var(--cw) * .62); height: calc(var(--cw) * .62); border-radius: 50%; display: grid; place-items: center;
+  font-size: calc(var(--cw) * .38); line-height: 1; color: #fff; font-weight: 800; pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3); animation: tagIn .3s ease; }
+.pcard.hl-swap .tag { background: #f59e3b; }
+.pcard.hl-replace .tag { background: #4cc38a; }
+.pcard.hl-peek .tag { background: #4a9be8; }
+@keyframes tagIn { from { transform: translate(-50%,-50%) scale(.2); } to { transform: translate(-50%,-50%) scale(1); } }
